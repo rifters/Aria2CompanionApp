@@ -34,8 +34,8 @@ public class Aria2RpcClient
         => CallAsync<string>("aria2.addUri", ct, new[] { uri });
 
     /// <summary>Returns active downloads.</summary>
-    public Task<DownloadInfo[]> TellActiveAsync(CancellationToken ct = default)
-        => CallAsync<DownloadInfo[]>("aria2.tellActive", ct) ?? Task.FromResult(Array.Empty<DownloadInfo>());
+    public async Task<DownloadInfo[]> TellActiveAsync(CancellationToken ct = default)
+        => await CallAsync<DownloadInfo[]>("aria2.tellActive", ct) ?? [];
 
     /// <summary>Returns waiting downloads (offset 0, limit 100).</summary>
     public Task<DownloadInfo[]> TellWaitingAsync(int offset = 0, int num = 100, CancellationToken ct = default)

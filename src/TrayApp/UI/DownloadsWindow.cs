@@ -198,7 +198,7 @@ internal sealed class DownloadsWindow : Form
     }
 
     private static string? GetSelectedGid(ListView lv)
-        => lv.SelectedItems.Count > 0 ? lv.SelectedItems[0].SubItems[5].Text : null;
+        => lv.SelectedItems.Count > 0 && lv.SelectedItems[0].Tag is DownloadInfo d ? d.Gid : null;
 
     // ──────────────────────────────────────────────
     //  Formatting helpers

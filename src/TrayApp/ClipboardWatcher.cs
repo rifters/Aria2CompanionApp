@@ -52,13 +52,25 @@ internal sealed class ClipboardWatcher : IDisposable
 
             if (result == DialogResult.Yes)
             {
-                _ = _rpc.AddUriAsync(text);
-                Notifications.ShowInfo("Sent to Aria2", Truncate(text, 60));
+                _ = SendToAria2Async(text);
             }
         }
         catch
         {
             // Clipboard can throw; ignore
+        }
+    }
+
+    private async Task SendToAria2Async(string url)
+    {
+        try
+        {
+            await _rpc.AddUriAsync(url);
+            Notifications.ShowInfo("Sent to Aria2", Truncate(url, 60));
+        }
+        catch (Exception ex)
+        {
+            Notifications.ShowInfo("Failed to send to Aria2", ex.Message);
         }
     }
 

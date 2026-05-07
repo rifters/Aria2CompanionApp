@@ -10,7 +10,6 @@ internal sealed class DownloadManager : IDisposable
 {
     private readonly Aria2RpcClient _rpc;
     private CancellationTokenSource? _cts;
-    private Task? _pollTask;
     private bool _disposed;
 
     public List<DownloadInfo> ActiveDownloads { get; } = [];
@@ -28,7 +27,7 @@ internal sealed class DownloadManager : IDisposable
     public void StartPolling()
     {
         _cts = new CancellationTokenSource();
-        _pollTask = PollLoopAsync(_cts.Token);
+        _ = PollLoopAsync(_cts.Token);
     }
 
     public void StopPolling()
@@ -92,6 +91,5 @@ internal sealed class DownloadManager : IDisposable
         _disposed = true;
         _cts?.Cancel();
         _cts?.Dispose();
-        _pollTask?.Dispose();
     }
 }

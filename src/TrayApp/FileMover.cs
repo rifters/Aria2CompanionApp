@@ -101,6 +101,13 @@ internal sealed class FileMoverDialog : Form
             DialogResult = DialogResult.OK;
             Close();
         }
+        catch (IOException ex) when (ex.HResult == unchecked((int)0x80070050) // ERROR_FILE_EXISTS
+                                   || ex.Message.Contains("already exists", StringComparison.OrdinalIgnoreCase))
+        {
+            MessageBox.Show(
+                $"A file with the same name already exists at the destination.\n\n{Path.Combine(destinationFolder, Path.GetFileName(_sourcePath))}",
+                "File Already Exists", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
         catch (Exception ex)
         {
             MessageBox.Show($"Failed to move file:\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);

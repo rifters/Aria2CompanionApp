@@ -14,6 +14,8 @@ internal sealed class TrayIcon : ApplicationContext, IDisposable
     private readonly Aria2WebSocketClient _ws;
     private readonly DownloadManager _downloadManager;
     private readonly ClipboardWatcher _clipboardWatcher;
+    private readonly SynchronizationContext _uiContext;
+    private readonly IntPtr _iconHandle;
     private DownloadsWindow? _downloadsWindow;
 
     public TrayIcon(Aria2RpcClient rpc, Aria2WebSocketClient ws, DownloadManager downloadManager)
@@ -23,9 +25,16 @@ internal sealed class TrayIcon : ApplicationContext, IDisposable
         _downloadManager = downloadManager;
         _clipboardWatcher = new ClipboardWatcher(rpc);
 
+        // Capture the UI synchronization context at construction time (always on UI thread)
+        _uiContext = SynchronizationContext.Current
+            ?? throw new InvalidOperationException("TrayIcon must be created on the UI thread.");
+
+        var (icon, hicon) = CreateIcon();
+        _iconHandle = hicon;
+
         _notifyIcon = new NotifyIcon
         {
-            Icon = CreateIcon(),
+            Icon = icon,
             Text = "Aria2 Companion",
             Visible = true,
             ContextMenuStrip = BuildContextMenu()
@@ -146,31 +155,23 @@ internal sealed class TrayIcon : ApplicationContext, IDisposable
     //  Helpers
     // ──────────────────────────────────────────────
 
-    private static void InvokeOnUiThread(Action action)
-    {
-        if (Application.OpenForms.Count > 0)
-            Application.OpenForms[0]?.BeginInvoke(action);
-        else
-            action();
-    }
+    private void InvokeOnUiThread(Action action)
+        => _uiContext.Post(_ => action(), null);
 
-    private static void InvokeOnUiThread(Func<Task> asyncAction)
-    {
-        if (Application.OpenForms.Count > 0)
-            Application.OpenForms[0]?.BeginInvoke(() => _ = asyncAction());
-        else
-            _ = asyncAction();
-    }
+    private void InvokeOnUiThread(Func<Task> asyncAction)
+        => _uiContext.Post(_ => _ = asyncAction(), null);
 
-    private static Icon CreateIcon()
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool DestroyIcon(IntPtr hIcon);
+
+    private static (Icon icon, IntPtr hicon) CreateIcon()
     {
-        // Create a simple 16×16 icon programmatically (green arrow)
+        // Create a simple 16×16 icon programmatically (green download arrow)
         var bitmap = new Bitmap(16, 16);
         using (var g = Graphics.FromImage(bitmap))
         {
             g.Clear(Color.Transparent);
             using var brush = new SolidBrush(Color.LimeGreen);
-            // Draw a downward arrow shape
             g.FillPolygon(brush, new[]
             {
                 new Point(8, 14), new Point(1, 5), new Point(5, 5),
@@ -178,7 +179,8 @@ internal sealed class TrayIcon : ApplicationContext, IDisposable
                 new Point(15, 5)
             });
         }
-        return Icon.FromHandle(bitmap.GetHicon());
+        var hicon = bitmap.GetHicon();
+        return (Icon.FromHandle(hicon), hicon);
     }
 
     protected override void Dispose(bool disposing)
@@ -188,6 +190,8 @@ internal sealed class TrayIcon : ApplicationContext, IDisposable
             _notifyIcon.Dispose();
             _ws.Dispose();
             _clipboardWatcher.Dispose();
+            if (_iconHandle != IntPtr.Zero)
+                DestroyIcon(_iconHandle);
         }
         base.Dispose(disposing);
     }
