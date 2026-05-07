@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Aria2Client/Aria2Client.csproj" />
+    <Project Path="src/TrayApp/TrayApp.csproj" />
+  </Folder>
+</Solution>
