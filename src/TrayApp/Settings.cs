@@ -1,5 +1,9 @@
 namespace TrayApp;
 
+/// <summary>
+/// Hard-coded configuration for this personal tool.
+/// All values here are intentionally embedded for convenience as a local-only app.
+/// </summary>
 internal static class Settings
 {
     public const string RpcUrl = "http://192.168.4.120:6800/jsonrpc";

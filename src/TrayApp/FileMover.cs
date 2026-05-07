@@ -92,8 +92,16 @@ internal sealed class FileMoverDialog : Form
             Directory.CreateDirectory(destinationFolder);
             var destPath = Path.Combine(destinationFolder, Path.GetFileName(_sourcePath));
 
+            if (File.Exists(destPath) || Directory.Exists(destPath))
+            {
+                MessageBox.Show(
+                    $"A file with the same name already exists at the destination:\n\n{destPath}",
+                    "File Already Exists", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             if (File.Exists(_sourcePath))
-                File.Move(_sourcePath, destPath, overwrite: false);
+                File.Move(_sourcePath, destPath);
             else if (Directory.Exists(_sourcePath))
                 Directory.Move(_sourcePath, destPath);
 
@@ -101,16 +109,13 @@ internal sealed class FileMoverDialog : Form
             DialogResult = DialogResult.OK;
             Close();
         }
-        catch (IOException ex) when (ex.HResult == unchecked((int)0x80070050) // ERROR_FILE_EXISTS
-                                   || ex.Message.Contains("already exists", StringComparison.OrdinalIgnoreCase))
-        {
-            MessageBox.Show(
-                $"A file with the same name already exists at the destination.\n\n{Path.Combine(destinationFolder, Path.GetFileName(_sourcePath))}",
-                "File Already Exists", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-        }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             MessageBox.Show($"Failed to move file:\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            MessageBox.Show($"Access denied:\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
