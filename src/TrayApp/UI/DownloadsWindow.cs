@@ -259,10 +259,30 @@ internal sealed class DownloadsWindow : Form
     private ContextMenuStrip BuildCompletedContextMenu()
     {
         var menu = new ContextMenuStrip();
-        menu.Items.Add("Remove from list", null, async (_, _) =>
+        menu.Items.Add("Remove from list", null, (_, _) =>
         {
-            if (GetSelectedGid(_completedList) is { } gid)
-                await _rpc.RemoveAsync(gid);
+            try
+            {
+                if (GetSelectedGid(_completedList) is { } gid)
+                {
+                    // Remove in background to avoid crashes
+                    Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await _rpc.RemoveAsync(gid);
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Remove failed: {ex.Message}");
+                        }
+                    }).ContinueWith(_ => { }, TaskScheduler.Default);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Remove from list error: {ex.Message}");
+            }
         });
         menu.Items.Add("Move file…", null, (_, _) =>
         {
@@ -286,7 +306,37 @@ internal sealed class DownloadsWindow : Form
                     }
 
                     System.Diagnostics.Debug.WriteLine($"Moving file: {path}");
-                    FileMover.ShowMoveDialog(path);
+
+                    // Show the move dialog
+                    bool moved = false;
+                    try
+                    {
+                        moved = FileMover.ShowMoveDialog(path);
+                    }
+                    catch (Exception moveEx)
+                    {
+                        MessageBox.Show($"Move dialog error: {moveEx.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    // If file was successfully moved, inform user
+                    if (moved)
+                    {
+                        try
+                        {
+                            MessageBox.Show(
+                                "✓ File moved successfully!\n\n" +
+                                "Tip: Right-click the download and select 'Remove from list' to clean it up.",
+                                "Move Complete",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Information
+                            );
+                        }
+                        catch (Exception msgEx)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"MessageBox error: {msgEx.Message}");
+                        }
+                    }
                 }
                 else
                 {

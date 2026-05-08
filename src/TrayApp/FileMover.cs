@@ -5,67 +5,98 @@ namespace TrayApp;
 /// </summary>
 internal static class FileMover
 {
-    public static void ShowMoveDialog(string sourcePath)
+    public static bool ShowMoveDialog(string sourcePath)
     {
-        // Always show the dialog, even if the path doesn't exist locally
-        // The user can then navigate to find the file
-        if (string.IsNullOrWhiteSpace(sourcePath))
+        try
         {
-            MessageBox.Show("No file path available for this download.", 
-                "Cannot Move File", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return;
-        }
-
-        // Try to map the path from Aria2 server path to Windows path
-        var windowsPath = PathMapper.ToWindowsPath(sourcePath);
-
-        // Check if it's a Linux/server path that needs translation
-        if (!File.Exists(windowsPath) && !Directory.Exists(windowsPath))
-        {
-            var mappingConfigured = windowsPath != sourcePath && windowsPath != sourcePath.Replace('/', '\\');
-
-            var message = mappingConfigured
-                ? $"The download path from Aria2 server:\n\n{sourcePath}\n\n" +
-                  $"Was mapped to:\n\n{windowsPath}\n\n" +
-                  "But this path doesn't exist on your local system.\n\n" +
-                  "Would you like to browse for the file manually?"
-                : $"The download path from Aria2 server:\n\n{sourcePath}\n\n" +
-                  "This path doesn't exist on your local system.\n\n" +
-                  "Tip: You can configure path mappings via:\n" +
-                  "Right-click tray icon → Settings → Path Mappings\n\n" +
-                  "Would you like to browse for the file manually?";
-
-            var result = MessageBox.Show(
-                message,
-                "File Not Found",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Question
-            );
-
-            if (result == DialogResult.Yes)
+            // Always show the dialog, even if the path doesn't exist locally
+            // The user can then navigate to find the file
+            if (string.IsNullOrWhiteSpace(sourcePath))
             {
-                ShowBrowseAndMoveDialog(Path.GetFileName(sourcePath));
+                MessageBox.Show("No file path available for this download.", 
+                    "Cannot Move File", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
             }
-            return;
-        }
 
-        using var dlg = new FileMoverDialog(windowsPath);
-        dlg.ShowDialog();
+            // Try to map the path from Aria2 server path to Windows path
+            var windowsPath = PathMapper.ToWindowsPath(sourcePath);
+
+            // Check if it's a Linux/server path that needs translation
+            if (!File.Exists(windowsPath) && !Directory.Exists(windowsPath))
+            {
+                var mappingConfigured = windowsPath != sourcePath && windowsPath != sourcePath.Replace('/', '\\');
+
+                var message = mappingConfigured
+                    ? $"The download path from Aria2 server:\n\n{sourcePath}\n\n" +
+                      $"Was mapped to:\n\n{windowsPath}\n\n" +
+                      "But this path doesn't exist on your local system.\n\n" +
+                      "Would you like to browse for the file manually?"
+                    : $"The download path from Aria2 server:\n\n{sourcePath}\n\n" +
+                      "This path doesn't exist on your local system.\n\n" +
+                      "Tip: You can configure path mappings via:\n" +
+                      "Right-click tray icon → Settings → Path Mappings\n\n" +
+                      "Would you like to browse for the file manually?";
+
+                var result = MessageBox.Show(
+                    message,
+                    "File Not Found",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question
+                );
+
+                if (result == DialogResult.Yes)
+                {
+                    return ShowBrowseAndMoveDialog(Path.GetFileName(sourcePath));
+                }
+                return false;
+            }
+
+            using var dlg = new FileMoverDialog(windowsPath);
+            return dlg.ShowDialog() == DialogResult.OK;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Error showing move dialog:\n\n{ex.Message}\n\nStack trace:\n{ex.StackTrace}",
+                "Move File Error",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error
+            );
+            return false;
+        }
     }
 
-    private static void ShowBrowseAndMoveDialog(string expectedFileName)
+    private static bool ShowBrowseAndMoveDialog(string expectedFileName)
     {
-        using var openDlg = new OpenFileDialog
+        try
         {
-            Title = $"Locate downloaded file: {expectedFileName}",
-            Filter = "All files (*.*)|*.*",
-            FileName = expectedFileName
-        };
+            using var openDlg = new OpenFileDialog
+            {
+                Title = $"Locate downloaded file: {expectedFileName}",
+                Filter = "All files (*.*)|*.*",
+                FileName = expectedFileName
+            };
 
-        if (openDlg.ShowDialog() == DialogResult.OK)
+            var result = openDlg.ShowDialog();
+
+            // User clicked OK and selected a file
+            if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(openDlg.FileName))
+            {
+                using var moveDlg = new FileMoverDialog(openDlg.FileName);
+                return moveDlg.ShowDialog() == DialogResult.OK;
+            }
+            // User clicked Cancel or closed the dialog
+            return false;
+        }
+        catch (Exception ex)
         {
-            using var moveDlg = new FileMoverDialog(openDlg.FileName);
-            moveDlg.ShowDialog();
+            MessageBox.Show(
+                $"Error in browse dialog:\n\n{ex.Message}",
+                "Browse Error",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error
+            );
+            return false;
         }
     }
 }
@@ -95,13 +126,27 @@ internal sealed class FileMoverDialog : Form
     {
         var fileName = Path.GetFileName(_sourcePath);
 
+        var mainPanel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 6,
+            Padding = new Padding(12),
+            AutoSize = true
+        };
+
+        mainPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+        mainPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+
         var label = new Label
         {
             Text = $"Download complete:\n{fileName}\n\nMove to:",
             AutoSize = true,
-            Location = new Point(12, 12),
-            MaximumSize = new Size(380, 0)
+            Dock = DockStyle.Fill,
+            MaximumSize = new Size(450, 0)
         };
+        mainPanel.Controls.Add(label, 0, 0);
+        mainPanel.SetColumnSpan(label, 2);
 
         // Preset folder buttons - use common Windows locations
         var downloadsFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + @"\Downloads";
@@ -109,41 +154,48 @@ internal sealed class FileMoverDialog : Form
         var documentsFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         var musicFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyMusic);
 
-        var btnDownloads = MakeButton("📁  Downloads", downloadsFolder, new Point(12, 90));
-        var btnVideos = MakeButton("🎬  Videos", videosFolder, new Point(12, 130));
-        var btnDocuments = MakeButton("📄  Documents", documentsFolder, new Point(12, 170));
-        var btnMusic = MakeButton("🎵  Music", musicFolder, new Point(12, 210));
+        var btnDownloads = MakeButton("📁  Downloads", downloadsFolder);
+        var btnVideos = MakeButton("🎬  Videos", videosFolder);
+        var btnDocuments = MakeButton("📄  Documents", documentsFolder);
+        var btnMusic = MakeButton("🎵  Music", musicFolder);
 
         var btnCustom = new Button
         {
             Text = "📂  Custom Folder…",
-            Width = 180,
-            Height = 30,
-            Location = new Point(210, 90)
+            AutoSize = true,
+            Dock = DockStyle.Fill,
+            Margin = new Padding(3)
         };
         btnCustom.Click += (_, _) => MoveToCustomFolder();
 
         var btnCancel = new Button
         {
             Text = "Leave in place",
-            Width = 180,
-            Height = 30,
-            Location = new Point(210, 130),
+            AutoSize = true,
+            Dock = DockStyle.Fill,
+            Margin = new Padding(3),
             DialogResult = DialogResult.Cancel
         };
 
-        Controls.AddRange([label, btnDownloads, btnVideos, btnDocuments, btnMusic, btnCustom, btnCancel]);
+        mainPanel.Controls.Add(btnDownloads, 0, 1);
+        mainPanel.Controls.Add(btnCustom, 1, 1);
+        mainPanel.Controls.Add(btnVideos, 0, 2);
+        mainPanel.Controls.Add(btnCancel, 1, 2);
+        mainPanel.Controls.Add(btnDocuments, 0, 3);
+        mainPanel.Controls.Add(btnMusic, 0, 4);
+
+        Controls.Add(mainPanel);
         CancelButton = btnCancel;
     }
 
-    private Button MakeButton(string text, string destination, Point location)
+    private Button MakeButton(string text, string destination)
     {
         var btn = new Button
         {
             Text = text,
-            Width = 180,
-            Height = 30,
-            Location = location
+            AutoSize = true,
+            Dock = DockStyle.Fill,
+            Margin = new Padding(3)
         };
         btn.Click += (_, _) => MoveFile(destination);
         return btn;
@@ -197,8 +249,7 @@ internal sealed class FileMoverDialog : Form
             else if (Directory.Exists(_sourcePath))
                 Directory.Move(_sourcePath, destPath);
 
-            MessageBox.Show($"✓ Moved successfully to:\n\n{destPath}", "Done", 
-                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            // Don't show success message here - let the caller handle it
             DialogResult = DialogResult.OK;
             Close();
         }
