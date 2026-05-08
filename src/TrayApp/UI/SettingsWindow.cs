@@ -445,14 +445,6 @@ internal sealed class SettingsWindow : Form
         _lblStatus.Text = "? Settings saved successfully!";
         _lblStatus.ForeColor = Color.Green;
 
-        MessageBox.Show(
-            "Settings saved successfully!\n\n" +
-            "Note: Some changes (like polling interval) may require restarting the app.",
-            "Settings Saved",
-            MessageBoxButtons.OK,
-            MessageBoxIcon.Information
-        );
-
         DialogResult = DialogResult.OK;
         Close();
     }

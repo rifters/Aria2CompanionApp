@@ -130,11 +130,15 @@ internal sealed class TrayIcon : ApplicationContext, IDisposable
         using var dlg = new SettingsWindow();
         if (dlg.ShowDialog() == DialogResult.OK)
         {
-            // Settings saved - show message about restart if needed
+            // Settings saved successfully
             MessageBox.Show(
-                "Settings saved successfully!\n\n" +
-                "Note: Some changes may require restarting the app to take full effect.",
-                "Settings Updated",
+                "✓ Settings saved!\n\n" +
+                "Changes applied:\n" +
+                "• RPC connection settings updated\n" +
+                "• Path mappings updated\n\n" +
+                "Note: The app will use new settings immediately. " +
+                "If you changed the RPC URL, connections will reconnect automatically.",
+                "Settings Saved",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information
             );
