@@ -50,7 +50,11 @@ internal sealed class SettingsManager
                 if (File.Exists(_settingsPath))
                 {
                     var json = File.ReadAllText(_settingsPath);
-                    _settings = JsonSerializer.Deserialize<AppSettings>(json) ?? CreateDefaults();
+                    var options = new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    };
+                    _settings = JsonSerializer.Deserialize<AppSettings>(json, options) ?? CreateDefaults();
                 }
                 else
                 {
