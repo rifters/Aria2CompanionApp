@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json;
 using TrayApp.Models;
 
 namespace TrayApp;
@@ -127,13 +128,13 @@ internal sealed class SettingsManager
         {
             RpcSettings = new RpcSettings
             {
-                RpcUrl = TrayApp.Settings.RpcUrl,
-                WsUrl = TrayApp.Settings.WsUrl,
-                Token = TrayApp.Settings.Token,
-                DefaultDownloadDir = TrayApp.Settings.DefaultAria2DownloadDir
+                RpcUrl = global::TrayApp.Settings.RpcUrl,
+                WsUrl = global::TrayApp.Settings.WsUrl,
+                Token = global::TrayApp.Settings.Token,
+                DefaultDownloadDir = global::TrayApp.Settings.DefaultAria2DownloadDir
             },
             PathMappings = new List<PathMapping>(),
-            PollingIntervalMs = TrayApp.Settings.PollIntervalMs,
+            PollingIntervalMs = global::TrayApp.Settings.PollIntervalMs,
             Version = "1.0"
         };
     }
@@ -144,8 +145,8 @@ internal sealed class SettingsManager
     private bool ShouldMigrateOldSettings()
     {
         // If Settings.cs has localhost defaults, no need to migrate
-        return TrayApp.Settings.RpcUrl != "http://localhost:6800/jsonrpc" ||
-               !string.IsNullOrEmpty(TrayApp.Settings.Token);
+        return global::TrayApp.Settings.RpcUrl != "http://localhost:6800/jsonrpc" ||
+               !string.IsNullOrEmpty(global::TrayApp.Settings.Token);
     }
 
     /// <summary>
@@ -169,13 +170,13 @@ internal sealed class SettingsManager
             {
                 RpcSettings = new RpcSettings
                 {
-                    RpcUrl = TrayApp.Settings.RpcUrl,
-                    WsUrl = TrayApp.Settings.WsUrl,
-                    Token = TrayApp.Settings.Token,
-                    DefaultDownloadDir = TrayApp.Settings.DefaultAria2DownloadDir
+                    RpcUrl = global::TrayApp.Settings.RpcUrl,
+                    WsUrl = global::TrayApp.Settings.WsUrl,
+                    Token = global::TrayApp.Settings.Token,
+                    DefaultDownloadDir = global::TrayApp.Settings.DefaultAria2DownloadDir
                 },
                 PathMappings = new List<PathMapping>(),
-                PollingIntervalMs = TrayApp.Settings.PollIntervalMs,
+                PollingIntervalMs = global::TrayApp.Settings.PollIntervalMs,
                 Version = "1.0"
             };
 
