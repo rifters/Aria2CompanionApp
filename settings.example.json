@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Aria2 Companion Settings",
+  "description": "Configuration template for Aria2 Companion App. Copy this to settings.json and customize.",
+
+  "rpcSettings": {
+    "rpcUrl": "http://localhost:6800/jsonrpc",
+    "wsUrl": "ws://localhost:6800/jsonrpc",
+    "token": "",
+    "defaultDownloadDir": "/downloads",
+    "_comment": "Get RPC token from your Aria2 config (--rpc-secret=TOKEN)"
+  },
+
+  "pathMappings": [
+    {
+      "linuxPrefix": "/share/CACHEDEV1_DATA/downloads",
+      "windowsPrefix": "X:\\Downloads",
+      "description": "QNAP NAS Downloads (example)"
+    },
+    {
+      "linuxPrefix": "/volume1/downloads",
+      "windowsPrefix": "Z:\\Downloads",
+      "description": "Synology NAS (example)"
+    },
+    {
+      "linuxPrefix": "/mnt/user/downloads",
+      "windowsPrefix": "Y:\\Downloads",
+      "description": "Unraid (example)"
+    }
+  ],
+
+  "pollingIntervalMs": 3000,
+  "version": "1.0",
+
+  "_readme": "This is an example file. The app will create settings.json automatically on first run."
+}
