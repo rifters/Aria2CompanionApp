@@ -19,8 +19,10 @@ internal sealed class SettingsWindow : Form
     private TextBox _txtDownloadDir = null!;
     private NumericUpDown _numPollInterval = null!;
     private CheckBox _chkEnableClipboard = null!;
+    private CheckBox _chkShowPathMappings = null!;
 
     // Path Mappings controls
+    private GroupBox _grpPathMappings = null!;
     private DataGridView _gridMappings = null!;
     private Button _btnAddMapping = null!;
     private Button _btnEditMapping = null!;
@@ -154,13 +156,25 @@ internal sealed class SettingsWindow : Form
         layout.Controls.Add(_chkEnableClipboard, 0, 5);
         layout.SetColumnSpan(_chkEnableClipboard, 2);
 
+        // Show Path Mappings (for NAS/Linux)
+        _chkShowPathMappings = new CheckBox 
+        { 
+            Text = "Show Path Mappings (for NAS/Linux Aria2 servers)", 
+            AutoSize = true,
+            Checked = true,
+            Margin = new Padding(3, 6, 3, 3)
+        };
+        _chkShowPathMappings.CheckedChanged += (_, _) => TogglePathMappingsVisibility();
+        layout.Controls.Add(_chkShowPathMappings, 0, 6);
+        layout.SetColumnSpan(_chkShowPathMappings, 2);
+
         group.Controls.Add(layout);
         return group;
     }
 
     private GroupBox CreatePathMappingsGroup()
     {
-        var group = new GroupBox
+        _grpPathMappings = new GroupBox
         {
             Text = "Path Mappings (for NAS/Remote Aria2)",
             Dock = DockStyle.Fill,
@@ -238,8 +252,13 @@ internal sealed class SettingsWindow : Form
         btnPanel.Controls.AddRange(new Control[] { _btnAddMapping, _btnEditMapping, _btnRemoveMapping, _btnTestMapping });
         layout.Controls.Add(btnPanel, 0, 1);
 
-        group.Controls.Add(layout);
-        return group;
+        _grpPathMappings.Controls.Add(layout);
+        return _grpPathMappings;
+    }
+
+    private void TogglePathMappingsVisibility()
+    {
+        _grpPathMappings.Visible = _chkShowPathMappings.Checked;
     }
 
     private FlowLayoutPanel CreateButtonPanel()
@@ -274,6 +293,9 @@ internal sealed class SettingsWindow : Form
         _txtDownloadDir.Text = _workingSettings.RpcSettings.DefaultDownloadDir;
         _numPollInterval.Value = _workingSettings.PollingIntervalMs;
         _chkEnableClipboard.Checked = _workingSettings.EnableClipboardMonitoring;
+        _chkShowPathMappings.Checked = _workingSettings.ShowPathMappings;
+
+        TogglePathMappingsVisibility(); // Apply visibility on load
 
         RefreshMappingsGrid();
     }
@@ -455,6 +477,7 @@ internal sealed class SettingsWindow : Form
         _workingSettings.RpcSettings.DefaultDownloadDir = _txtDownloadDir.Text.Trim();
         _workingSettings.PollingIntervalMs = (int)_numPollInterval.Value;
         _workingSettings.EnableClipboardMonitoring = _chkEnableClipboard.Checked;
+        _workingSettings.ShowPathMappings = _chkShowPathMappings.Checked;
 
         // Copy mappings from BindingList back to settings
         // Don't clear the original list - create a new one
@@ -490,8 +513,14 @@ internal sealed class SettingsWindow : Form
                 WindowsPrefix = m.WindowsPrefix,
                 Description = m.Description
             }).ToList(),
+            MovePresets = original.MovePresets.Select(p => new MovePreset
+            {
+                Label = p.Label,
+                Path = p.Path
+            }).ToList(),
             PollingIntervalMs = original.PollingIntervalMs,
             EnableClipboardMonitoring = original.EnableClipboardMonitoring,
+            ShowPathMappings = original.ShowPathMappings,
             Version = original.Version
         };
     }

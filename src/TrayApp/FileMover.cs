@@ -1,4 +1,5 @@
 namespace TrayApp;
+using TrayApp.Models;
 
 /// <summary>
 /// Shows a dialog after a download completes, asking where to move the file.
@@ -125,12 +126,13 @@ internal sealed class FileMoverDialog : Form
     private void BuildUi()
     {
         var fileName = Path.GetFileName(_sourcePath);
+        var presets = SettingsManager.Instance.Settings.MovePresets;
 
         var mainPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 2,
-            RowCount = 6,
+            RowCount = Math.Max(4, presets.Count + 2), // Label + presets + custom + cancel
             Padding = new Padding(12),
             AutoSize = true
         };
@@ -140,7 +142,9 @@ internal sealed class FileMoverDialog : Form
 
         var label = new Label
         {
-            Text = $"Download complete:\n{fileName}\n\nMove to:",
+            Text = presets.Count > 0 
+                ? $"Download complete:\n{fileName}\n\nMove to:"
+                : $"Download complete:\n{fileName}\n\nNo presets configured yet.\nUse '➕ Add Preset' or '📂 Custom Folder' to get started!",
             AutoSize = true,
             Dock = DockStyle.Fill,
             MaximumSize = new Size(450, 0)
@@ -148,17 +152,30 @@ internal sealed class FileMoverDialog : Form
         mainPanel.Controls.Add(label, 0, 0);
         mainPanel.SetColumnSpan(label, 2);
 
-        // Preset folder buttons - use common Windows locations
-        var downloadsFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + @"\Downloads";
-        var videosFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
-        var documentsFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-        var musicFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyMusic);
+        // Add preset buttons (if any configured)
+        int row = 1;
+        foreach (var preset in presets.Take(6)) // Max 6 presets to avoid huge dialog
+        {
+            var btn = MakeButton(preset.Label, preset.Path);
+            int col = row == 1 ? 0 : (row - 1) % 2;
+            mainPanel.Controls.Add(btn, col, row);
 
-        var btnDownloads = MakeButton("📁  Downloads", downloadsFolder);
-        var btnVideos = MakeButton("🎬  Videos", videosFolder);
-        var btnDocuments = MakeButton("📄  Documents", documentsFolder);
-        var btnMusic = MakeButton("🎵  Music", musicFolder);
+            if (col == 1) row++;
+        }
 
+        // Add Preset button
+        var btnAddPreset = new Button
+        {
+            Text = "➕ Add Preset",
+            AutoSize = true,
+            Dock = DockStyle.Fill,
+            Margin = new Padding(3),
+            BackColor = Color.LightGreen
+        };
+        btnAddPreset.Click += (_, _) => AddNewPreset();
+        mainPanel.Controls.Add(btnAddPreset, 0, row);
+
+        // Custom folder button
         var btnCustom = new Button
         {
             Text = "📂  Custom Folder…",
@@ -167,7 +184,9 @@ internal sealed class FileMoverDialog : Form
             Margin = new Padding(3)
         };
         btnCustom.Click += (_, _) => MoveToCustomFolder();
+        mainPanel.Controls.Add(btnCustom, 1, row);
 
+        // Cancel button
         var btnCancel = new Button
         {
             Text = "Leave in place",
@@ -176,13 +195,8 @@ internal sealed class FileMoverDialog : Form
             Margin = new Padding(3),
             DialogResult = DialogResult.Cancel
         };
-
-        mainPanel.Controls.Add(btnDownloads, 0, 1);
-        mainPanel.Controls.Add(btnCustom, 1, 1);
-        mainPanel.Controls.Add(btnVideos, 0, 2);
-        mainPanel.Controls.Add(btnCancel, 1, 2);
-        mainPanel.Controls.Add(btnDocuments, 0, 3);
-        mainPanel.Controls.Add(btnMusic, 0, 4);
+        mainPanel.Controls.Add(btnCancel, 0, row + 1);
+        mainPanel.SetColumnSpan(btnCancel, 2);
 
         Controls.Add(mainPanel);
         CancelButton = btnCancel;
@@ -197,11 +211,11 @@ internal sealed class FileMoverDialog : Form
             Dock = DockStyle.Fill,
             Margin = new Padding(3)
         };
-        btn.Click += (_, _) => MoveFile(destination);
+        btn.Click += (_, _) => MoveFile(destination, promptForPreset: false); // Preset button - don't ask
         return btn;
     }
 
-    private void MoveFile(string destinationFolder)
+    private void MoveFile(string destinationFolder, bool promptForPreset = true)
     {
         try
         {
@@ -249,6 +263,10 @@ internal sealed class FileMoverDialog : Form
             else if (Directory.Exists(_sourcePath))
                 Directory.Move(_sourcePath, destPath);
 
+            // Only ask to save as preset if user browsed for a custom folder
+            if (promptForPreset)
+                PromptSaveAsPreset(destinationFolder);
+
             // Don't show success message here - let the caller handle it
             DialogResult = DialogResult.OK;
             Close();
@@ -267,6 +285,174 @@ internal sealed class FileMoverDialog : Form
         {
             MessageBox.Show($"Unexpected error:\n\n{ex.Message}\n\nType: {ex.GetType().Name}", 
                 "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void AddNewPreset()
+    {
+        using var dlg = new FolderBrowserDialog { Description = "Choose folder for new preset" };
+        if (dlg.ShowDialog(this) != DialogResult.OK)
+            return;
+
+        var folderPath = dlg.SelectedPath;
+
+        // Ask for preset label
+        var labelDialog = new Form
+        {
+            Text = "New Preset",
+            ClientSize = new Size(450, 150),
+            StartPosition = FormStartPosition.CenterParent,
+            FormBorderStyle = FormBorderStyle.Sizable,
+            MaximizeBox = false,
+            MinimizeBox = false,
+            MinimumSize = new Size(400, 180)
+        };
+
+        var lblPrompt = new Label
+        {
+            Text = $"Enter a label for this preset:",
+            AutoSize = true,
+            Location = new Point(12, 12),
+            MaximumSize = new Size(410, 0)
+        };
+
+        var lblPath = new Label
+        {
+            Text = folderPath,
+            AutoSize = true,
+            Location = new Point(12, lblPrompt.Bottom + 4),
+            MaximumSize = new Size(410, 0),
+            ForeColor = Color.Gray,
+            Font = new Font(lblPrompt.Font.FontFamily, 8)
+        };
+
+        var txtLabel = new TextBox
+        {
+            Width = 410,
+            Location = new Point(12, lblPath.Bottom + 12),
+            Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+            PlaceholderText = "e.g., Movies, TV Shows, Books..."
+        };
+
+        var btnOk = new Button
+        {
+            Text = "Save Preset",
+            DialogResult = DialogResult.OK,
+            Location = new Point(labelDialog.ClientSize.Width - 200, txtLabel.Bottom + 16),
+            Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
+            Width = 100
+        };
+
+        var btnCancel = new Button
+        {
+            Text = "Cancel",
+            DialogResult = DialogResult.Cancel,
+            Location = new Point(labelDialog.ClientSize.Width - 90, txtLabel.Bottom + 16),
+            Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
+            Width = 80
+        };
+
+        labelDialog.Controls.AddRange(new Control[] { lblPrompt, lblPath, txtLabel, btnOk, btnCancel });
+        labelDialog.AcceptButton = btnOk;
+        labelDialog.CancelButton = btnCancel;
+        labelDialog.ActiveControl = txtLabel; // Focus the textbox
+
+        if (labelDialog.ShowDialog(this) == DialogResult.OK && !string.IsNullOrWhiteSpace(txtLabel.Text))
+        {
+            var newPreset = new MovePreset
+            {
+                Label = txtLabel.Text.Trim(),
+                Path = folderPath
+            };
+
+            var settings = SettingsManager.Instance.Settings;
+            settings.MovePresets.Add(newPreset);
+            SettingsManager.Instance.Save();
+
+            MessageBox.Show($"✓ Preset '{newPreset.Label}' added!\n\nIt will appear in the Move dialog next time.",
+                "Preset Added", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+    }
+
+    private void PromptSaveAsPreset(string folderPath)
+    {
+        // Check if this folder is already a preset
+        var settings = SettingsManager.Instance.Settings;
+        if (settings.MovePresets.Any(p => p.Path.Equals(folderPath, StringComparison.OrdinalIgnoreCase)))
+            return; // Already a preset
+
+        var result = MessageBox.Show(
+            $"Save this folder as a preset?\n\n{folderPath}\n\nIt will appear as a button next time.",
+            "Save as Preset?",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Question
+        );
+
+        if (result != DialogResult.Yes)
+            return;
+
+        // Ask for label
+        var labelDialog = new Form
+        {
+            Text = "Preset Label",
+            ClientSize = new Size(450, 120), // Use ClientSize instead of Width/Height
+            StartPosition = FormStartPosition.CenterParent,
+            FormBorderStyle = FormBorderStyle.Sizable,
+            MaximizeBox = false,
+            MinimizeBox = false,
+            MinimumSize = new Size(400, 150)
+        };
+
+        var lblPrompt = new Label
+        {
+            Text = "Enter a label for this preset:",
+            AutoSize = true,
+            Location = new Point(12, 12)
+        };
+
+        var txtLabel = new TextBox
+        {
+            Width = 410,
+            Location = new Point(12, lblPrompt.Bottom + 12),
+            Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+            PlaceholderText = Path.GetFileName(folderPath), // Suggest folder name
+            Text = Path.GetFileName(folderPath) // Pre-fill with suggestion
+        };
+        txtLabel.SelectAll(); // Select all text so user can type over it
+
+        var btnOk = new Button
+        {
+            Text = "Save",
+            DialogResult = DialogResult.OK,
+            Location = new Point(labelDialog.ClientSize.Width - 180, txtLabel.Bottom + 16),
+            Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
+            Width = 80
+        };
+
+        var btnCancel = new Button
+        {
+            Text = "Skip",
+            DialogResult = DialogResult.Cancel,
+            Location = new Point(labelDialog.ClientSize.Width - 90, txtLabel.Bottom + 16),
+            Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
+            Width = 80
+        };
+
+        labelDialog.Controls.AddRange(new Control[] { lblPrompt, txtLabel, btnOk, btnCancel });
+        labelDialog.AcceptButton = btnOk;
+        labelDialog.CancelButton = btnCancel;
+        labelDialog.ActiveControl = txtLabel; // Focus the textbox
+
+        if (labelDialog.ShowDialog() == DialogResult.OK && !string.IsNullOrWhiteSpace(txtLabel.Text))
+        {
+            var newPreset = new MovePreset
+            {
+                Label = txtLabel.Text.Trim(),
+                Path = folderPath
+            };
+
+            settings.MovePresets.Add(newPreset);
+            SettingsManager.Instance.Save();
         }
     }
 
