@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Aria2Client;
 using TrayApp.Models;
 
@@ -9,6 +10,7 @@ namespace TrayApp.UI;
 internal sealed class SettingsWindow : Form
 {
     private readonly AppSettings _workingSettings;
+    private readonly BindingList<PathMapping> _mappingsBindingList;
 
     // RPC Settings controls
     private TextBox _txtRpcUrl = null!;
@@ -36,6 +38,10 @@ internal sealed class SettingsWindow : Form
     {
         // Work on a copy - only save on explicit Save button click
         _workingSettings = CloneSettings(SettingsManager.Instance.Settings);
+
+        // Use BindingList for proper DataGridView support
+        _mappingsBindingList = new BindingList<PathMapping>(_workingSettings.PathMappings);
+
         InitializeComponent();
         LoadSettingsIntoControls();
     }
@@ -261,7 +267,7 @@ internal sealed class SettingsWindow : Form
     private void RefreshMappingsGrid()
     {
         _gridMappings.DataSource = null;
-        _gridMappings.DataSource = _workingSettings.PathMappings;
+        _gridMappings.DataSource = _mappingsBindingList;
     }
 
     private void BtnAddMapping_Click(object? sender, EventArgs e)
@@ -269,8 +275,7 @@ internal sealed class SettingsWindow : Form
         using var dlg = new PathMappingDialog(null);
         if (dlg.ShowDialog(this) == DialogResult.OK && dlg.Mapping != null)
         {
-            _workingSettings.PathMappings.Add(dlg.Mapping);
-            RefreshMappingsGrid();
+            _mappingsBindingList.Add(dlg.Mapping);
             _lblStatus.Text = "Mapping added (not saved yet)";
             _lblStatus.ForeColor = Color.Orange;
         }
@@ -290,9 +295,11 @@ internal sealed class SettingsWindow : Form
         using var dlg = new PathMappingDialog(selectedMapping);
         if (dlg.ShowDialog(this) == DialogResult.OK && dlg.Mapping != null)
         {
-            var index = _workingSettings.PathMappings.IndexOf(selectedMapping);
-            _workingSettings.PathMappings[index] = dlg.Mapping;
-            RefreshMappingsGrid();
+            var index = _mappingsBindingList.IndexOf(selectedMapping);
+            if (index >= 0)
+            {
+                _mappingsBindingList[index] = dlg.Mapping;
+            }
             _lblStatus.Text = "Mapping updated (not saved yet)";
             _lblStatus.ForeColor = Color.Orange;
         }
@@ -318,8 +325,7 @@ internal sealed class SettingsWindow : Form
 
         if (result == DialogResult.Yes)
         {
-            _workingSettings.PathMappings.Remove(selectedMapping);
-            RefreshMappingsGrid();
+            _mappingsBindingList.Remove(selectedMapping);
             _lblStatus.Text = "Mapping removed (not saved yet)";
             _lblStatus.ForeColor = Color.Orange;
         }
@@ -428,6 +434,10 @@ internal sealed class SettingsWindow : Form
         _workingSettings.RpcSettings.Token = _txtToken.Text.Trim();
         _workingSettings.RpcSettings.DefaultDownloadDir = _txtDownloadDir.Text.Trim();
         _workingSettings.PollingIntervalMs = (int)_numPollInterval.Value;
+
+        // Copy mappings from BindingList back to settings
+        _workingSettings.PathMappings.Clear();
+        _workingSettings.PathMappings.AddRange(_mappingsBindingList);
 
         // Save to file
         SettingsManager.Instance.UpdateSettings(_workingSettings);
