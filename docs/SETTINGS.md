@@ -2,13 +2,21 @@
 
 ## ?? Settings Location
 
-Settings are stored in `settings.json` next to the executable (portable mode).
+Settings are stored in your **Windows user profile** to survive app updates and rebuilds.
 
-**Example location:**
+**Location:**
 ```
-C:\Users\YourName\Downloads\Aria2CompanionApp\
-??? Aria2CompanionApp.exe
-??? settings.json          ? Your personal config (gitignored)
+%LOCALAPPDATA%\Aria2CompanionApp\settings.json
+```
+
+**Full path example:**
+```
+C:\Users\YourName\AppData\Local\Aria2CompanionApp\settings.json
+```
+
+**To view your settings:**
+```powershell
+notepad $env:LOCALAPPDATA\Aria2CompanionApp\settings.json
 ```
 
 ## ?? Configuration Options

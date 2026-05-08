@@ -10,8 +10,11 @@ namespace TrayApp;
 internal sealed class SettingsManager
 {
     private static readonly Lazy<SettingsManager> _instance = new(() => new SettingsManager());
+
+    // Store settings in a persistent location (survives rebuilds)
     private static readonly string _settingsPath = Path.Combine(
-        AppContext.BaseDirectory,
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "Aria2CompanionApp",
         "settings.json"
     );
 
@@ -85,6 +88,13 @@ internal sealed class SettingsManager
         {
             try
             {
+                // Ensure directory exists
+                var directory = Path.GetDirectoryName(_settingsPath);
+                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
                 var options = new JsonSerializerOptions
                 {
                     WriteIndented = true,
