@@ -78,12 +78,15 @@ internal sealed class FileMoverDialog : Form
     {
         _sourcePath = sourcePath;
         Text = "Move Download";
-        Width = 420;
-        Height = 280;
+        Width = 500;
+        Height = 350;
+        MinimumSize = new Size(450, 300);
         StartPosition = FormStartPosition.CenterScreen;
-        FormBorderStyle = FormBorderStyle.FixedDialog;
-        MaximizeBox = false;
+        FormBorderStyle = FormBorderStyle.Sizable;
+        MaximizeBox = true;
         MinimizeBox = false;
+        Font = new Font("Segoe UI", 9F);
+        AutoScaleMode = AutoScaleMode.Font;
 
         BuildUi();
     }
