@@ -34,6 +34,10 @@ internal sealed class ClipboardWatcher : IDisposable
     {
         try
         {
+            // Check if clipboard monitoring is enabled
+            if (!SettingsManager.Instance.Settings.EnableClipboardMonitoring)
+                return;
+
             if (!Clipboard.ContainsText()) return;
 
             var text = Clipboard.GetText().Trim();

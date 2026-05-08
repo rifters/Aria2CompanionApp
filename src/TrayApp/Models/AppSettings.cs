@@ -8,6 +8,7 @@ public class AppSettings
     public RpcSettings RpcSettings { get; set; } = new();
     public List<PathMapping> PathMappings { get; set; } = new();
     public int PollingIntervalMs { get; set; } = 3000;
+    public bool EnableClipboardMonitoring { get; set; } = true;
     public string Version { get; set; } = "1.0";
 }
 

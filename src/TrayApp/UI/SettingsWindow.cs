@@ -18,6 +18,7 @@ internal sealed class SettingsWindow : Form
     private TextBox _txtToken = null!;
     private TextBox _txtDownloadDir = null!;
     private NumericUpDown _numPollInterval = null!;
+    private CheckBox _chkEnableClipboard = null!;
 
     // Path Mappings controls
     private DataGridView _gridMappings = null!;
@@ -39,7 +40,8 @@ internal sealed class SettingsWindow : Form
         // Work on a copy - only save on explicit Save button click
         _workingSettings = CloneSettings(SettingsManager.Instance.Settings);
 
-        // Use BindingList for proper DataGridView support
+        // Wrap the PathMappings list directly (not a copy)
+        // This ensures changes in the DataGridView update the working settings
         _mappingsBindingList = new BindingList<PathMapping>(_workingSettings.PathMappings);
 
         InitializeComponent();
@@ -140,6 +142,17 @@ internal sealed class SettingsWindow : Form
         layout.Controls.Add(new Label { Text = "Poll Interval (ms):", AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(3, 6, 3, 3) }, 0, 4);
         _numPollInterval = new NumericUpDown { Minimum = 1000, Maximum = 60000, Increment = 1000, Value = 3000, Width = 100 };
         layout.Controls.Add(_numPollInterval, 1, 4);
+
+        // Clipboard Monitoring
+        _chkEnableClipboard = new CheckBox 
+        { 
+            Text = "Enable clipboard URL monitoring", 
+            AutoSize = true,
+            Checked = true,
+            Margin = new Padding(3, 6, 3, 3)
+        };
+        layout.Controls.Add(_chkEnableClipboard, 0, 5);
+        layout.SetColumnSpan(_chkEnableClipboard, 2);
 
         group.Controls.Add(layout);
         return group;
@@ -260,6 +273,7 @@ internal sealed class SettingsWindow : Form
         _txtToken.Text = _workingSettings.RpcSettings.Token;
         _txtDownloadDir.Text = _workingSettings.RpcSettings.DefaultDownloadDir;
         _numPollInterval.Value = _workingSettings.PollingIntervalMs;
+        _chkEnableClipboard.Checked = _workingSettings.EnableClipboardMonitoring;
 
         RefreshMappingsGrid();
     }
@@ -275,9 +289,15 @@ internal sealed class SettingsWindow : Form
         using var dlg = new PathMappingDialog(null);
         if (dlg.ShowDialog(this) == DialogResult.OK && dlg.Mapping != null)
         {
+            System.Diagnostics.Debug.WriteLine($"Add button: Adding mapping {dlg.Mapping.LinuxPrefix} -> {dlg.Mapping.WindowsPrefix}");
             _mappingsBindingList.Add(dlg.Mapping);
+            System.Diagnostics.Debug.WriteLine($"BindingList now has {_mappingsBindingList.Count} items");
             _lblStatus.Text = "Mapping added (not saved yet)";
             _lblStatus.ForeColor = Color.Orange;
+        }
+        else
+        {
+            System.Diagnostics.Debug.WriteLine("Add dialog cancelled or returned null mapping");
         }
     }
 
@@ -434,16 +454,14 @@ internal sealed class SettingsWindow : Form
         _workingSettings.RpcSettings.Token = _txtToken.Text.Trim();
         _workingSettings.RpcSettings.DefaultDownloadDir = _txtDownloadDir.Text.Trim();
         _workingSettings.PollingIntervalMs = (int)_numPollInterval.Value;
+        _workingSettings.EnableClipboardMonitoring = _chkEnableClipboard.Checked;
 
         // Copy mappings from BindingList back to settings
-        _workingSettings.PathMappings.Clear();
-        foreach (var mapping in _mappingsBindingList)
-        {
-            _workingSettings.PathMappings.Add(mapping);
-        }
+        // Don't clear the original list - create a new one
+        _workingSettings.PathMappings = new List<PathMapping>(_mappingsBindingList);
 
-        // Debug: Verify mappings before save
-        System.Diagnostics.Debug.WriteLine($"Saving {_workingSettings.PathMappings.Count} path mappings");
+        System.Diagnostics.Debug.WriteLine($"BindingList has {_mappingsBindingList.Count} mappings");
+        System.Diagnostics.Debug.WriteLine($"WorkingSettings now has {_workingSettings.PathMappings.Count} path mappings");
 
         // Save to file
         SettingsManager.Instance.UpdateSettings(_workingSettings);
@@ -473,6 +491,7 @@ internal sealed class SettingsWindow : Form
                 Description = m.Description
             }).ToList(),
             PollingIntervalMs = original.PollingIntervalMs,
+            EnableClipboardMonitoring = original.EnableClipboardMonitoring,
             Version = original.Version
         };
     }

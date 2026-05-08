@@ -105,8 +105,19 @@ internal sealed class SettingsManager
                     PropertyNamingPolicy = JsonNamingPolicy.CamelCase
                 };
 
+                // Debug: Log what we're about to save
+                System.Diagnostics.Debug.WriteLine($"SettingsManager.Save() called");
+                System.Diagnostics.Debug.WriteLine($"  _settings.PathMappings.Count = {_settings.PathMappings.Count}");
+                System.Diagnostics.Debug.WriteLine($"  _settings.EnableClipboardMonitoring = {_settings.EnableClipboardMonitoring}");
+
                 var json = JsonSerializer.Serialize(_settings, options);
+
+                System.Diagnostics.Debug.WriteLine($"Serialized JSON length: {json.Length}");
+                System.Diagnostics.Debug.WriteLine($"Writing to: {_settingsPath}");
+
                 File.WriteAllText(_settingsPath, json);
+
+                System.Diagnostics.Debug.WriteLine("Settings saved successfully!");
             }
             catch (Exception ex)
             {
@@ -127,6 +138,10 @@ internal sealed class SettingsManager
     {
         lock (_lock)
         {
+            System.Diagnostics.Debug.WriteLine($"UpdateSettings called");
+            System.Diagnostics.Debug.WriteLine($"  newSettings.PathMappings.Count = {newSettings.PathMappings.Count}");
+            System.Diagnostics.Debug.WriteLine($"  newSettings.EnableClipboardMonitoring = {newSettings.EnableClipboardMonitoring}");
+
             _settings = newSettings;
             Save();
         }

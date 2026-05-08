@@ -377,6 +377,54 @@ internal sealed class DownloadsWindow : Form
                     "Move File Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         });
+
+        menu.Items.Add(new ToolStripSeparator());
+
+        menu.Items.Add("Copy Download URL", null, (_, _) =>
+        {
+            if (targetInfo == null)
+            {
+                MessageBox.Show("No download selected.", "Copy URL", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            try
+            {
+                // Get the first URI from the download
+                var uri = targetInfo.Files.FirstOrDefault()?.Uris?.FirstOrDefault()?.Uri;
+
+                if (string.IsNullOrWhiteSpace(uri))
+                {
+                    MessageBox.Show(
+                        $"No download URL available for this download.\n\nGID: {targetInfo.Gid}\nName: {targetInfo.Name}",
+                        "No URL",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information
+                    );
+                    return;
+                }
+
+                // Copy to clipboard
+                Clipboard.SetText(uri);
+
+                MessageBox.Show(
+                    $"✓ URL copied to clipboard!\n\n{uri}",
+                    "Copied",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information
+                );
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Failed to copy URL:\n{ex.Message}",
+                    "Copy Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error
+                );
+            }
+        });
+
         return menu;
     }
 
