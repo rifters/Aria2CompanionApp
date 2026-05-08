@@ -13,11 +13,13 @@ internal static class Program
         Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
         Application.ThreadException += (_, e) => 
         {
+            if (e.Exception == null) return;
+
             // Don't show connection errors - they're expected when Aria2 is offline
             if (e.Exception is HttpRequestException || 
                 e.Exception is System.Net.Sockets.SocketException ||
-                e.Exception?.InnerException is HttpRequestException ||
-                e.Exception?.InnerException is System.Net.Sockets.SocketException)
+                e.Exception.InnerException is HttpRequestException ||
+                e.Exception.InnerException is System.Net.Sockets.SocketException)
             {
                 System.Diagnostics.Debug.WriteLine($"Connection error (expected if Aria2 offline): {e.Exception.Message}");
                 return;
