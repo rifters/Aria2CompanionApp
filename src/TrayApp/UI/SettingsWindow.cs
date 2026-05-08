@@ -437,7 +437,13 @@ internal sealed class SettingsWindow : Form
 
         // Copy mappings from BindingList back to settings
         _workingSettings.PathMappings.Clear();
-        _workingSettings.PathMappings.AddRange(_mappingsBindingList);
+        foreach (var mapping in _mappingsBindingList)
+        {
+            _workingSettings.PathMappings.Add(mapping);
+        }
+
+        // Debug: Verify mappings before save
+        System.Diagnostics.Debug.WriteLine($"Saving {_workingSettings.PathMappings.Count} path mappings");
 
         // Save to file
         SettingsManager.Instance.UpdateSettings(_workingSettings);

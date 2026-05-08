@@ -266,12 +266,37 @@ internal sealed class DownloadsWindow : Form
         });
         menu.Items.Add("Move file…", null, (_, _) =>
         {
-            if (_completedList.SelectedItems.Count == 0) return;
-            if (_completedList.SelectedItems[0].Tag is DownloadInfo info)
+            try
             {
-                var path = info.Files.FirstOrDefault()?.Path ?? string.Empty;
-                if (!string.IsNullOrWhiteSpace(path))
+                if (_completedList.SelectedItems.Count == 0)
+                {
+                    MessageBox.Show("No download selected.", "Move File", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                if (_completedList.SelectedItems[0].Tag is DownloadInfo info)
+                {
+                    var path = info.Files.FirstOrDefault()?.Path ?? string.Empty;
+
+                    if (string.IsNullOrWhiteSpace(path))
+                    {
+                        MessageBox.Show($"No file path available for this download.\n\nGID: {info.Gid}\nName: {info.Name}", 
+                            "Move File", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+
+                    System.Diagnostics.Debug.WriteLine($"Moving file: {path}");
                     FileMover.ShowMoveDialog(path);
+                }
+                else
+                {
+                    MessageBox.Show("Could not get download information.", "Move File", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error: {ex.Message}\n\nStack trace:\n{ex.StackTrace}", 
+                    "Move File Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         });
         return menu;
