@@ -259,88 +259,116 @@ internal sealed class DownloadsWindow : Form
     private ContextMenuStrip BuildCompletedContextMenu()
     {
         var menu = new ContextMenuStrip();
+
+        // Capture the clicked item when menu opens
+        string? targetGid = null;
+        DownloadInfo? targetInfo = null;
+
+        menu.Opening += (_, _) =>
+        {
+            targetGid = GetSelectedGid(_completedList);
+            targetInfo = _completedList.SelectedItems.Count > 0 
+                ? _completedList.SelectedItems[0].Tag as DownloadInfo 
+                : null;
+        };
+
         menu.Items.Add("Remove from list", null, (_, _) =>
         {
+            if (targetGid == null) return;
+
             try
             {
-                if (GetSelectedGid(_completedList) is { } gid)
+                // Remove in background to avoid crashes
+                Task.Run(async () =>
                 {
-                    // Remove in background to avoid crashes
-                    Task.Run(async () =>
+                    try
                     {
-                        try
+                        // Use RemoveDownloadResult for completed downloads
+                        await _rpc.RemoveDownloadResultAsync(targetGid);
+                        // Force refresh on UI thread
+                        BeginInvoke(() => RefreshDisplay());
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Remove failed: {ex.Message}");
+
+                        // Always refresh to sync with Aria2's current state
+                        BeginInvoke(() => 
                         {
-                            await _rpc.RemoveAsync(gid);
-                        }
-                        catch (Exception ex)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"Remove failed: {ex.Message}");
-                        }
-                    }).ContinueWith(_ => { }, TaskScheduler.Default);
-                }
+                            RefreshDisplay();
+
+                            // If it's "not found", show friendly message
+                            if (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                            {
+                                // Don't show anything - just refresh silently since it's already gone
+                            }
+                            else
+                            {
+                                MessageBox.Show($"Failed to remove download:\n{ex.Message}", "Remove Error", 
+                                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            }
+                        });
+                    }
+                });
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Remove from list error: {ex.Message}");
             }
         });
+
         menu.Items.Add("Move file…", null, (_, _) =>
         {
+            if (targetInfo == null)
+            {
+                MessageBox.Show("No download selected.", "Move File", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
             try
             {
-                if (_completedList.SelectedItems.Count == 0)
+                var path = targetInfo.Files.FirstOrDefault()?.Path ?? string.Empty;
+
+                if (string.IsNullOrWhiteSpace(path))
                 {
-                    MessageBox.Show("No download selected.", "Move File", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show($"No file path available for this download.\n\nGID: {targetInfo.Gid}\nName: {targetInfo.Name}", 
+                        "Move File", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
 
-                if (_completedList.SelectedItems[0].Tag is DownloadInfo info)
+                System.Diagnostics.Debug.WriteLine($"Moving file: {path}");
+
+                // Show the move dialog
+                bool moved = false;
+                try
                 {
-                    var path = info.Files.FirstOrDefault()?.Path ?? string.Empty;
+                    moved = FileMover.ShowMoveDialog(path);
+                }
+                catch (Exception moveEx)
+                {
+                    MessageBox.Show($"Move dialog error: {moveEx.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
 
-                    if (string.IsNullOrWhiteSpace(path))
-                    {
-                        MessageBox.Show($"No file path available for this download.\n\nGID: {info.Gid}\nName: {info.Name}", 
-                            "Move File", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        return;
-                    }
-
-                    System.Diagnostics.Debug.WriteLine($"Moving file: {path}");
-
-                    // Show the move dialog
-                    bool moved = false;
-                    try
-                    {
-                        moved = FileMover.ShowMoveDialog(path);
-                    }
-                    catch (Exception moveEx)
-                    {
-                        MessageBox.Show($"Move dialog error: {moveEx.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        return;
-                    }
-
-                    // If file was successfully moved, inform user
-                    if (moved)
+                // If file was successfully moved, auto-remove from list
+                if (moved)
+                {
+                    // Remove from Aria2's completed list in background
+                    Task.Run(async () =>
                     {
                         try
                         {
-                            MessageBox.Show(
-                                "✓ File moved successfully!\n\n" +
-                                "Tip: Right-click the download and select 'Remove from list' to clean it up.",
-                                "Move Complete",
-                                MessageBoxButtons.OK,
-                                MessageBoxIcon.Information
-                            );
+                            await _rpc.RemoveDownloadResultAsync(targetInfo.Gid);
+                            // Refresh display on UI thread
+                            BeginInvoke(() => RefreshDisplay());
                         }
-                        catch (Exception msgEx)
+                        catch (Exception ex)
                         {
-                            System.Diagnostics.Debug.WriteLine($"MessageBox error: {msgEx.Message}");
+                            System.Diagnostics.Debug.WriteLine($"Auto-remove after move failed: {ex.Message}");
+                            // Still refresh even if removal failed
+                            BeginInvoke(() => RefreshDisplay());
                         }
-                    }
-                }
-                else
-                {
-                    MessageBox.Show("Could not get download information.", "Move File", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    });
                 }
             }
             catch (Exception ex)

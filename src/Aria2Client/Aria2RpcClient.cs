@@ -75,6 +75,10 @@ public class Aria2RpcClient
     public Task<string> RemoveAsync(string gid, CancellationToken ct = default)
         => CallAsync<string>("aria2.remove", ct, gid);
 
+    /// <summary>Removes a completed/error/removed download from memory.</summary>
+    public Task<string> RemoveDownloadResultAsync(string gid, CancellationToken ct = default)
+        => CallAsync<string>("aria2.removeDownloadResult", ct, gid);
+
     /// <summary>Forcibly removes a download by GID (even if active).</summary>
     public Task<string> ForceRemoveAsync(string gid, CancellationToken ct = default)
         => CallAsync<string>("aria2.forceRemove", ct, gid);
