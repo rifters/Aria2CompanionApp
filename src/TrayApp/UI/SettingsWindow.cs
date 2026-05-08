@@ -43,12 +43,13 @@ internal sealed class SettingsWindow : Form
     private void InitializeComponent()
     {
         Text = "Aria2 Companion - Settings";
-        Width = 700;
-        Height = 600;
-        MinimumSize = new Size(650, 500);
+        Width = 800;
+        Height = 650;
+        MinimumSize = new Size(700, 550);
         StartPosition = FormStartPosition.CenterScreen;
         FormBorderStyle = FormBorderStyle.Sizable;
         Font = new Font("Segoe UI", 9F);
+        AutoScaleMode = AutoScaleMode.Font;
         AutoScaleMode = AutoScaleMode.Font;
 
         var mainLayout = new TableLayoutPanel
@@ -484,11 +485,12 @@ internal sealed class PathMappingDialog : Form
     public PathMappingDialog(PathMapping? existingMapping)
     {
         Text = existingMapping == null ? "Add Path Mapping" : "Edit Path Mapping";
-        Width = 550;
-        Height = 250;
+        Width = 650;
+        Height = 280;
+        MinimumSize = new Size(550, 250);
         StartPosition = FormStartPosition.CenterParent;
-        FormBorderStyle = FormBorderStyle.FixedDialog;
-        MaximizeBox = false;
+        FormBorderStyle = FormBorderStyle.Sizable;
+        MaximizeBox = true;
         MinimizeBox = false;
         Font = new Font("Segoe UI", 9F);
         AutoScaleMode = AutoScaleMode.Font;
