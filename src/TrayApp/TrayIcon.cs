@@ -49,9 +49,35 @@ internal sealed class TrayIcon : ApplicationContext, IDisposable
 
         Notifications.Register(_notifyIcon);
         WireWebSocketEvents();
+
+        // Start services - they handle connection failures gracefully
         _ws.StartBackground();
         _downloadManager.StartPolling();
         _clipboardWatcher.Start();
+
+        // Show a friendly message if Aria2 seems to be offline
+        _ = CheckInitialConnectionAsync();
+    }
+
+    private async Task CheckInitialConnectionAsync()
+    {
+        await Task.Delay(2000); // Wait 2 seconds for initial connection attempts
+
+        try
+        {
+            // Try a simple version check
+            await _rpc.GetVersionAsync();
+        }
+        catch
+        {
+            // Aria2 appears to be offline - show helpful tip
+            _notifyIcon.ShowBalloonTip(
+                5000,
+                "Aria2 Connection",
+                "Cannot connect to Aria2 server. The app will keep trying to reconnect. Check Settings if needed.",
+                ToolTipIcon.Warning
+            );
+        }
     }
 
     // ──────────────────────────────────────────────
